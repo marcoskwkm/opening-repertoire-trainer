@@ -1,0 +1,5 @@
+.board {
+  /* width and height must be both divisible by 8 */
+  width: 600px;
+  height: 600px;
+}
