@@ -6,10 +6,20 @@ import type { Api } from 'chessground/api'
 import type { Key } from 'chessground/types'
 import classNames from 'classnames'
 
-import { getColor, getDests } from '../utils/chess'
-
 interface Props {
   className?: string
+  onReady?: (chessApi: ChessInstance, boardApi: Api) => any
+  onMove?: (chessApi: ChessInstance, boardApi: Api, orig: Key, dest: Key) => any
+}
+
+const usePropAsRef = <T extends any>(prop: T) => {
+  const propRef = useRef<T>(prop)
+
+  useEffect(() => {
+    propRef.current = prop
+  }, [prop])
+
+  return propRef
 }
 
 const Board: React.FC<Props> = (props) => {
@@ -17,46 +27,28 @@ const Board: React.FC<Props> = (props) => {
   const chessApi = useRef<ChessInstance>()
   const boardApi = useRef<Api>()
 
-  const handleMove = useCallback((orig: Key, dest: Key) => {
-    if (
-      !chessApi.current ||
-      !boardApi.current ||
-      orig === 'a0' ||
-      dest === 'a0'
-    ) {
-      return
-    }
+  const onReadyRef = usePropAsRef(props.onReady)
+  const onMoveRef = usePropAsRef(props.onMove)
 
-    chessApi.current?.move({ from: orig, to: dest })
-    const curColor = getColor(chessApi.current)
-
-    boardApi.current?.set({
-      turnColor: curColor,
-      movable: {
-        color: curColor,
-        dests: getDests(chessApi.current),
-      },
-    })
-  }, [])
+  const handleMove = useCallback(
+    (orig: Key, dest: Key) => {
+      onMoveRef.current?.(chessApi.current!, boardApi.current!, orig, dest)
+    },
+    [onMoveRef]
+  )
 
   useEffect(() => {
-    if (containerRef.current) {
-      chessApi.current = Chess()
-      boardApi.current = Chessground(containerRef.current, {
-        movable: {
-          color: 'white',
-          free: false,
-          dests: getDests(chessApi.current!),
-          events: {
-            after: handleMove,
-          },
-        },
+    chessApi.current = Chess()
+    boardApi.current = Chessground(containerRef.current!, {
+      movable: {
         events: {
-          move: (orig, dest, captured) => console.log(orig, dest, captured),
+          after: handleMove,
         },
-      })
-    }
-  }, [handleMove])
+      },
+    })
+
+    onReadyRef.current?.(chessApi.current!, boardApi.current!)
+  }, [handleMove, onReadyRef])
 
   return (
     <div
